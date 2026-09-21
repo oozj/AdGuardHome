@@ -27,6 +27,9 @@ ghcr.io/oozj/adguardhome:0.107.79-custom.1
 Use `latest` for the newest build or the fixed version tag for reproducible
 deployments.
 
+> [!IMPORTANT]
+> The currently published images support Linux/AMD64 only.
+
 ## Docker deployment
 
 Create persistent directories:
