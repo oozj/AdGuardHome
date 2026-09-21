@@ -50,6 +50,9 @@ It operates as a DNS server that re-routes tracking domains to a â€œblack holeâ€
     - [Alternative methods](#alternative-methods)
     - [Guides](#guides)
     - [API](#api)
+- [Upstream DNS Rule Groups](#upstream-dns-rule-groups)
+    - [Run the custom image](#run-the-custom-image)
+    - [Matching and fallback order](#matching-and-fallback-order)
 - [Comparing AdGuard Home to other solutions](#comparison)
     - [How is this different from public AdGuard DNS servers?](#comparison-adguard-dns)
     - [How does AdGuard Home compare to Pi-Hole](#comparison-pi-hole)
@@ -82,10 +85,63 @@ questions through ordered rule groups:
   priority; and
 - a built-in match tester that shows the selected group and upstream servers.
 
-Client-specific upstream settings remain the highest priority, followed by
-enabled rule groups and then the standard default upstream configuration.
+The page uses the standard AdGuard Home interface.  Remote subscriptions and
+custom groups appear in the same ordered table.  The non-removable **Default
+group** is always shown last and handles questions that do not match an earlier
+group.  Other DNS settings, such as load balancing, fallback servers, bootstrap
+servers, private reverse DNS, and upstream timeout, remain on the regular
+**DNS settings** page.
 
-Build the custom image with:
+### Run the custom image
+
+Prebuilt images are published to GitHub Container Registry:
+
+- `ghcr.io/oozj/adguardhome:latest` tracks the current custom branch;
+- `ghcr.io/oozj/adguardhome:0.107.79-custom.1` is the fixed release tag.
+
+The following example uses host networking so that DNS is available directly
+on TCP and UDP port 53 and the initial web interface is available on port 3000:
+
+```sh
+docker run -d \
+  --name adguardhome \
+  --restart unless-stopped \
+  --network host \
+  -v /opt/adguardhome/conf:/opt/adguardhome/conf \
+  -v /opt/adguardhome/work:/opt/adguardhome/work \
+  ghcr.io/oozj/adguardhome:latest
+```
+
+Then open `http://SERVER_IP:3000`.  Configuration and runtime data remain in
+the two mounted directories, so replacing the container does not remove them.
+
+To use the reproducible version instead of the moving tag, replace the image
+name with:
+
+```text
+ghcr.io/oozj/adguardhome:0.107.79-custom.1
+```
+
+### Matching and fallback order
+
+DNS questions are evaluated in this order:
+
+1. client-specific upstream DNS settings;
+2. enabled subscription and custom groups, from top to bottom in the table
+   (lower numeric priority first); and
+3. the non-removable Default group.
+
+An exception rule beginning with `@@` skips its current group and continues
+with the next group.  Rules operate only on the DNS question name.  If a rule
+contains a URL, only its hostname can affect DNS matching; paths, queries, and
+fragments are ignored.
+
+Remote subscription contents are retained after a successful refresh.  A
+later download failure is shown in the group list without discarding the last
+working rules.  Compile issues are also shown per group.  Custom groups open a
+full-page rule editor with a hostname match tester.
+
+To build the same image locally instead of pulling it from GHCR, run:
 
 ```sh
 docker build \
