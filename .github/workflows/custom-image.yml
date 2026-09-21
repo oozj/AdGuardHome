@@ -36,6 +36,7 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/adguardhome
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/codex/upstream-rule-groups' }}
+            type=raw,value=0.107.79-custom.1,enable=${{ github.ref == 'refs/heads/codex/upstream-rule-groups' }}
             type=ref,event=tag
 
       - name: Build and publish
