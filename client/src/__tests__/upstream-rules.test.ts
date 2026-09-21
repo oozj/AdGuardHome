@@ -8,6 +8,7 @@ import {
     summarizeUpstreams,
     sortUpstreamRuleGroups,
 } from '../components/Settings/UpstreamRules/helpers';
+import { UPSTREAM_RULE_SYNTAX_ROWS } from '../components/Settings/UpstreamRules/ruleSyntax';
 
 describe('classic upstream rule groups helpers', () => {
     test('normalizes one upstream per line', () => {
@@ -75,5 +76,13 @@ describe('classic upstream rule groups helpers', () => {
         expect(formatRulesCount('custom', undefined)).toBe(0);
         expect(formatRulesCount('subscription', 12)).toBe(12);
         expect(formatRulesCount('default', undefined)).toBe('—');
+    });
+
+    test('documents every supported custom-rule family', () => {
+        expect(UPSTREAM_RULE_SYNTAX_ROWS).toHaveLength(11);
+        expect(UPSTREAM_RULE_SYNTAX_ROWS.every((row) => row.exampleKey && row.descriptionKey)).toBe(true);
+        expect(UPSTREAM_RULE_SYNTAX_ROWS.map((row) => row.syntax)).toEqual(
+            expect.arrayContaining(['google', '||google', '||google^', '@@||safe.example.com^', '*']),
+        );
     });
 });

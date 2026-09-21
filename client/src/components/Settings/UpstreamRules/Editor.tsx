@@ -9,6 +9,7 @@ import Card from '../../ui/Card';
 import Loading from '../../ui/Loading';
 import PageTitle from '../../ui/PageTitle';
 import { normalizeUpstreams } from './helpers';
+import RuleSyntaxHelp from './RuleSyntaxHelp';
 import { UpstreamRuleGroup, UpstreamRuleGroupsStatus, UpstreamRuleTestResponse } from './types';
 
 const Editor = () => {
@@ -179,6 +180,7 @@ const Editor = () => {
                     </div>
                 )}
             </Card>
+            <RuleSyntaxHelp />
         </>
     );
 };
