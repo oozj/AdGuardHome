@@ -58,6 +58,11 @@ import type {
     StatsParams,
     TlsConfig,
     TlsConfigBody,
+    UpstreamRuleGroup,
+    UpstreamRuleGroupIDRequest,
+    UpstreamRuleGroupsStatus,
+    UpstreamRuleTestRequest,
+    UpstreamRuleTestResponse,
     UpstreamsConfig,
     UpstreamsConfigResponse,
     VersionInfo,
@@ -191,6 +196,98 @@ export const beginUpdate = async (options?: RequestInit): Promise<void> => {
     return customFetch<void>(getBeginUpdateUrl(), {
         ...options,
         method: 'POST',
+    });
+};
+
+export const getUpstreamRuleGroupsStatusUrl = () => {
+    return `control/upstream_rules/status`;
+};
+
+/**
+ * @summary Get upstream DNS rule groups
+ */
+export const upstreamRuleGroupsStatus = async (
+    options?: RequestInit,
+): Promise<UpstreamRuleGroupsStatus> => {
+    return customFetch<UpstreamRuleGroupsStatus>(getUpstreamRuleGroupsStatusUrl(), {
+        ...options,
+        method: 'GET',
+    });
+};
+
+export const getUpstreamRuleGroupSaveUrl = () => {
+    return `control/upstream_rules/save`;
+};
+
+/**
+ * @summary Create or update an upstream DNS rule group
+ */
+export const upstreamRuleGroupSave = async (
+    upstreamRuleGroup: UpstreamRuleGroup,
+    options?: RequestInit,
+): Promise<UpstreamRuleGroup> => {
+    return customFetch<UpstreamRuleGroup>(getUpstreamRuleGroupSaveUrl(), {
+        ...options,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...options?.headers },
+        body: JSON.stringify(upstreamRuleGroup),
+    });
+};
+
+export const getUpstreamRuleGroupDeleteUrl = () => {
+    return `control/upstream_rules/delete`;
+};
+
+/**
+ * @summary Delete an upstream DNS rule group
+ */
+export const upstreamRuleGroupDelete = async (
+    upstreamRuleGroupIDRequest: UpstreamRuleGroupIDRequest,
+    options?: RequestInit,
+): Promise<void> => {
+    return customFetch<void>(getUpstreamRuleGroupDeleteUrl(), {
+        ...options,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...options?.headers },
+        body: JSON.stringify(upstreamRuleGroupIDRequest),
+    });
+};
+
+export const getUpstreamRuleGroupRefreshUrl = () => {
+    return `control/upstream_rules/refresh`;
+};
+
+/**
+ * @summary Refresh an upstream DNS rule subscription
+ */
+export const upstreamRuleGroupRefresh = async (
+    upstreamRuleGroupIDRequest: UpstreamRuleGroupIDRequest,
+    options?: RequestInit,
+): Promise<UpstreamRuleGroup> => {
+    return customFetch<UpstreamRuleGroup>(getUpstreamRuleGroupRefreshUrl(), {
+        ...options,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...options?.headers },
+        body: JSON.stringify(upstreamRuleGroupIDRequest),
+    });
+};
+
+export const getUpstreamRuleTestUrl = () => {
+    return `control/upstream_rules/test`;
+};
+
+/**
+ * @summary Test which upstream DNS rule group matches a domain
+ */
+export const upstreamRuleTest = async (
+    upstreamRuleTestRequest: UpstreamRuleTestRequest,
+    options?: RequestInit,
+): Promise<UpstreamRuleTestResponse> => {
+    return customFetch<UpstreamRuleTestResponse>(getUpstreamRuleTestUrl(), {
+        ...options,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...options?.headers },
+        body: JSON.stringify(upstreamRuleTestRequest),
     });
 };
 

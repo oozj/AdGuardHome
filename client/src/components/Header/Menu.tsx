@@ -46,6 +46,10 @@ const SETTINGS_ITEMS = [
         text: 'dns_settings',
     },
     {
+        route: SETTINGS_URLS.upstream_rules,
+        text: 'upstream_rules_title',
+    },
+    {
         route: SETTINGS_URLS.encryption,
         text: 'encryption_settings',
     },

@@ -679,6 +679,26 @@ class Api {
         return this.makeRequest(path, method, config);
     }
 
+    getUpstreamRuleGroups() {
+        return this.makeRequest('upstream_rules/status', 'GET');
+    }
+
+    saveUpstreamRuleGroup(data: any) {
+        return this.makeRequest('upstream_rules/save', 'POST', { data });
+    }
+
+    deleteUpstreamRuleGroup(id: number) {
+        return this.makeRequest('upstream_rules/delete', 'POST', { data: { id } });
+    }
+
+    refreshUpstreamRuleGroup(id: number) {
+        return this.makeRequest('upstream_rules/refresh', 'POST', { data: { id } });
+    }
+
+    testUpstreamRuleDomain(domain: string) {
+        return this.makeRequest('upstream_rules/test', 'POST', { data: { domain } });
+    }
+
     SET_PROTECTION = { path: 'protection', method: 'POST' };
 
     setProtection(data: any) {

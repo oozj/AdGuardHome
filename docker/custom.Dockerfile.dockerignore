@@ -1,0 +1,8 @@
+.git
+bin
+build
+dist
+test-reports
+tmp
+client/node_modules
+client_v2/node_modules

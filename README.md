@@ -67,6 +67,33 @@ It operates as a DNS server that re-routes tracking domains to a â€œblack holeâ€
 - [Acknowledgments](#acknowledgments)
 - [Privacy](#privacy)
 
+## Upstream DNS Rule Groups
+
+This fork adds a dedicated **Upstream DNS servers** workspace for routing DNS
+questions through ordered rule groups:
+
+- remote rule subscriptions with manual refresh and per-group DNS servers;
+- editable custom groups with a full-page hostname-rule editor;
+- exact-domain, suffix, hostname glob, plain-host, and regular-expression
+  matching using DNS question-name semantics;
+- URL-shaped rules normalized to their hostname because DNS requests do not
+  contain URL paths;
+- exception rules that skip the current group and continue with the next
+  priority; and
+- a built-in match tester that shows the selected group and upstream servers.
+
+Client-specific upstream settings remain the highest priority, followed by
+enabled rule groups and then the standard default upstream configuration.
+
+Build the custom image with:
+
+```sh
+docker build \
+  --file docker/custom.Dockerfile \
+  --tag adguardhome-upstream-rules:local \
+  .
+```
+
 ## <a href="#getting-started" id="getting-started" name="getting-started">Getting Started</a>
 
 ### <a href="#automated-install-linux-and-mac" id="automated-install-linux-and-mac" name="automated-install-linux-and-mac">Automated install (Linux/Unix/MacOS/FreeBSD/OpenBSD)</a>

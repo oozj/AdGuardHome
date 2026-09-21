@@ -8,7 +8,11 @@ import Card from '../../../ui/Card';
 import { setDnsConfig } from '../../../../actions/dnsConfig';
 import { RootState } from '../../../../initialState';
 
-const Upstream = () => {
+type Props = {
+    hidePrimaryUpstreams?: boolean;
+};
+
+const Upstream = ({ hidePrimaryUpstreams = false }: Props) => {
     const { t } = useTranslation();
     const dispatch = useDispatch();
     const {
@@ -44,7 +48,7 @@ const Upstream = () => {
             local_ptr_upstreams,
             use_private_ptr_resolvers,
             upstream_timeout,
-            ...(upstream_dns_file ? null : { upstream_dns }),
+            ...(upstream_dns_file || hidePrimaryUpstreams ? null : { upstream_dns }),
         };
 
         dispatch(setDnsConfig(dnsConfig));
@@ -70,6 +74,7 @@ const Upstream = () => {
                             upstream_timeout,
                         }}
                         onSubmit={handleSubmit}
+                        hidePrimaryUpstreams={hidePrimaryUpstreams}
                     />
                 </div>
             </div>

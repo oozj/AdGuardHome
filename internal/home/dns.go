@@ -108,6 +108,7 @@ func initDNS(
 		// Don't wrap the error, since it's informative enough as is.
 		return err
 	}
+	config.DNS.HTTPClient = config.Filtering.HTTPClient
 
 	err = initDNSServer(
 		ctx,

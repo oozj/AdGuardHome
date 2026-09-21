@@ -834,5 +834,11 @@ func (s *Server) registerHandlers() {
 
 	s.conf.HTTPReg.Register(http.MethodPost, "/control/cache_clear", s.handleCacheClear)
 
+	s.conf.HTTPReg.Register(http.MethodGet, "/control/upstream_rules/status", s.handleUpstreamRuleGroupsGet)
+	s.conf.HTTPReg.Register(http.MethodPost, "/control/upstream_rules/save", s.handleUpstreamRuleGroupSave)
+	s.conf.HTTPReg.Register(http.MethodPost, "/control/upstream_rules/delete", s.handleUpstreamRuleGroupDelete)
+	s.conf.HTTPReg.Register(http.MethodPost, "/control/upstream_rules/refresh", s.handleUpstreamRuleGroupRefresh)
+	s.conf.HTTPReg.Register(http.MethodPost, "/control/upstream_rules/test", s.handleUpstreamRuleTest)
+
 	webRegistered = true
 }

@@ -7,7 +7,6 @@ import cn from 'clsx';
 
 import { PageLoader } from 'panel/common/ui/Loader';
 import theme from 'panel/lib/theme';
-import { Upstream } from './Upstream';
 import { Access } from './Access';
 import { ServerConfig } from './ServerConfig';
 import { Cache } from './Cache';
@@ -29,7 +28,6 @@ export const DnsSettings = () => {
                     when={!(dnsConfigState.processingGetConfig || accessState.processing)}
                     fallback={<PageLoader />}
                 >
-                    <Upstream />
                     <ServerConfig />
                     <Cache />
                     <Access />

@@ -145,6 +145,7 @@ export const SETTINGS_URLS = {
     encryption: '/encryption',
     dhcp: '/dhcp',
     dns: '/dns',
+    upstream_rules: '/upstream_rules',
     settings: '/settings',
     clients: '/clients',
 };

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/netip"
 	"os"
 	"slices"
@@ -18,6 +19,7 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/aghnet"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghslog"
 	"github.com/AdguardTeam/AdGuardHome/internal/client"
+	"github.com/AdguardTeam/AdGuardHome/internal/upstreamrules"
 	"github.com/AdguardTeam/dnscrypt"
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/AdguardTeam/dnsproxy/ratelimit"
@@ -62,6 +64,9 @@ type Config struct {
 
 	// Upstream DNS servers configuration
 
+	// HTTPClient downloads upstream rule subscriptions.  It is never persisted.
+	HTTPClient *http.Client `yaml:"-"`
+
 	// UpstreamDNS is the list of upstream DNS servers.
 	UpstreamDNS []string `yaml:"upstream_dns"`
 
@@ -79,6 +84,9 @@ type Config struct {
 
 	// UpstreamMode determines the logic through which upstreams will be used.
 	UpstreamMode UpstreamMode `yaml:"upstream_mode"`
+
+	// UpstreamRuleGroups contains ordered QNAME-based upstream selections.
+	UpstreamRuleGroups []upstreamrules.Group `yaml:"upstream_rule_groups,omitempty"`
 
 	// FastestTimeout replaces the default timeout for dialing IP addresses
 	// when FastestAddr is true.
