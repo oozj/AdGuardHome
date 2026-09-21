@@ -175,15 +175,23 @@ func validateUpstreamRuleGroup(group upstreamrules.Group) (err error) {
 	if strings.TrimSpace(group.Name) == "" {
 		return fmt.Errorf("name must not be empty")
 	}
-	if len(group.Upstreams) == 0 {
+	if err = validateUpstreamRuleGroupResolvers(group.Upstreams); err != nil {
+		return err
+	}
+
+	return validateUpstreamRuleGroupKind(group)
+}
+
+func validateUpstreamRuleGroupResolvers(upstreams []string) (err error) {
+	if len(upstreams) == 0 {
 		return fmt.Errorf("upstreams must not be empty")
 	}
-	for i, upstreamAddr := range group.Upstreams {
+	for i, upstreamAddr := range upstreams {
 		if strings.TrimSpace(upstreamAddr) == "" {
 			return fmt.Errorf("upstreams: address at index %d is empty", i)
 		}
 	}
-	uc, err := proxy.ParseUpstreamsConfig(group.Upstreams, &upstream.Options{})
+	uc, err := proxy.ParseUpstreamsConfig(upstreams, &upstream.Options{})
 	if err != nil {
 		return fmt.Errorf("upstreams: %w", err)
 	}
@@ -192,6 +200,10 @@ func validateUpstreamRuleGroup(group upstreamrules.Group) (err error) {
 		return fmt.Errorf("upstreams must include at least one default resolver")
 	}
 
+	return nil
+}
+
+func validateUpstreamRuleGroupKind(group upstreamrules.Group) (err error) {
 	switch group.Kind {
 	case groupKindCustom:
 		return nil
@@ -266,6 +278,36 @@ func (s *Server) replaceUpstreamRuleGroups(
 	return err
 }
 
+func (s *Server) prepareUpstreamRuleGroup(
+	ctx context.Context,
+	group upstreamrules.Group,
+	currentGroups []upstreamrules.Group,
+) (prepared upstreamrules.Group, err error) {
+	if group.Kind != groupKindSubscription {
+		group.URL = ""
+
+		return group, nil
+	}
+
+	index := slices.IndexFunc(currentGroups, func(existing upstreamrules.Group) bool {
+		return existing.ID == group.ID
+	})
+	if index >= 0 {
+		if merged, ok := mergeCachedSubscriptionRules(group, currentGroups[index]); ok {
+			return merged, nil
+		}
+	}
+
+	group.Rules, err = fetchUpstreamRuleSubscription(ctx, s.conf.HTTPClient, group.URL)
+	if err != nil {
+		return upstreamrules.Group{}, err
+	}
+	group.LastUpdated = time.Now().UTC().Format(time.RFC3339)
+	group.LastError = ""
+
+	return group, nil
+}
+
 func (s *Server) handleUpstreamRuleGroupSave(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	s.upstreamRuleGroupsMu.Lock()
@@ -280,29 +322,11 @@ func (s *Server) handleUpstreamRuleGroupSave(w http.ResponseWriter, r *http.Requ
 	}
 
 	currentGroups := s.currentUpstreamRuleGroups()
-	if group.Kind == groupKindSubscription {
-		usedCachedRules := false
-		index := slices.IndexFunc(currentGroups, func(existing upstreamrules.Group) bool {
-			return existing.ID == group.ID
-		})
-		if index >= 0 {
-			if merged, ok := mergeCachedSubscriptionRules(group, currentGroups[index]); ok {
-				group = merged
-				usedCachedRules = true
-			}
-		}
-		if !usedCachedRules {
-			group.Rules, err = fetchUpstreamRuleSubscription(ctx, s.conf.HTTPClient, group.URL)
-			if err != nil {
-				aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusBadGateway, "%s", err)
+	group, err = s.prepareUpstreamRuleGroup(ctx, group, currentGroups)
+	if err != nil {
+		aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusBadGateway, "%s", err)
 
-				return
-			}
-			group.LastUpdated = time.Now().UTC().Format(time.RFC3339)
-			group.LastError = ""
-		}
-	} else {
-		group.URL = ""
+		return
 	}
 
 	groups, saved, err := upsertUpstreamRuleGroup(currentGroups, group)

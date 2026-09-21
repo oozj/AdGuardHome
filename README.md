@@ -21,14 +21,18 @@ Images are published to GitHub Container Registry:
 
 ```text
 ghcr.io/oozj/adguardhome:latest
-ghcr.io/oozj/adguardhome:0.107.79-custom.1
+ghcr.io/oozj/adguardhome:sha-COMMIT_SHA
 ```
 
-Use `latest` for the newest build or the fixed version tag for reproducible
-deployments.
+Use `latest` for the newest build or a SHA/version tag for reproducible
+deployments.  Version tags such as `0.107.79-custom.2` are created only from
+matching Git tags.
 
-> [!IMPORTANT]
-> The currently published images support Linux/AMD64 only.
+The current workflow builds Linux/AMD64 and Linux/ARM64 images.  It also
+publishes the same tags to `docker.io/oozj/adguardhome` when the repository has
+the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets configured.  A fixed
+version tag is published only from the matching Git tag and is never moved by
+normal branch builds.
 
 ## Docker deployment
 

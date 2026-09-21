@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM adguard/home-js-builder:4.0 AS frontend
+FROM --platform=$BUILDPLATFORM adguard/home-js-builder:4.0 AS frontend
 WORKDIR /app
 COPY client /app/client
 COPY .twosky.json /app/.twosky.json
@@ -8,8 +8,11 @@ RUN --mount=type=cache,target=/root/.npm \
     npm --prefix client ci --quiet --no-progress && \
     npm --prefix client run build-prod
 
-FROM adguard/go-builder:1.26.6--1 AS backend
+FROM --platform=$BUILDPLATFORM adguard/go-builder:1.26.6--1 AS backend
 ARG VERSION=v0.107.79-upstream-rules
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
 WORKDIR /app
 COPY . /app
 COPY --from=frontend /app/build /app/build
@@ -18,12 +21,15 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     mkdir -p /out && \
     env \
         CHANNEL=development \
+        GOOS="$TARGETOS" \
+        GOARCH="$TARGETARCH" \
+        GOARM="${TARGETVARIANT#v}" \
         SOURCE_DATE_EPOCH=0 \
         VERSION="$VERSION" \
         OUT=/out/AdGuardHome \
         sh ./scripts/make/go-build.sh
 
-FROM alpine:3.23
+FROM --platform=$TARGETPLATFORM alpine:3.23
 RUN apk --no-cache add ca-certificates libcap tzdata && \
     mkdir -p /opt/adguardhome/conf /opt/adguardhome/work && \
     chown -R nobody:nogroup /opt/adguardhome

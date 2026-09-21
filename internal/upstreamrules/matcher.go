@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -71,8 +70,15 @@ type compiledGroup struct {
 // Compile compiles groups into a matcher.
 func Compile(groups []Group) (m *Matcher, issues []Issue) {
 	groups = slices.Clone(groups)
-	sort.SliceStable(groups, func(i, j int) bool {
-		return groups[i].Priority < groups[j].Priority
+	slices.SortStableFunc(groups, func(left, right Group) int {
+		switch {
+		case left.Priority < right.Priority:
+			return -1
+		case left.Priority > right.Priority:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	m = &Matcher{}
@@ -81,29 +87,8 @@ func Compile(groups []Group) (m *Matcher, issues []Issue) {
 			continue
 		}
 
-		compiled := compiledGroup{group: group}
-		for lineIndex, line := range strings.Split(group.Rules, "\n") {
-			rule, exception, ignore, err := compileLine(line)
-			if ignore {
-				continue
-			}
-			if err != nil {
-				issues = append(issues, Issue{
-					GroupID:   group.ID,
-					GroupName: group.Name,
-					Line:      lineIndex + 1,
-					Message:   err.Error(),
-				})
-
-				continue
-			}
-
-			if exception {
-				compiled.exceptions = append(compiled.exceptions, rule)
-			} else {
-				compiled.positive = append(compiled.positive, rule)
-			}
-		}
+		compiled, groupIssues := compileGroup(group)
+		issues = append(issues, groupIssues...)
 
 		if len(compiled.positive) > 0 {
 			m.groups = append(m.groups, compiled)
@@ -111,6 +96,34 @@ func Compile(groups []Group) (m *Matcher, issues []Issue) {
 	}
 
 	return m, issues
+}
+
+func compileGroup(group Group) (compiled compiledGroup, issues []Issue) {
+	compiled = compiledGroup{group: group}
+	for lineIndex, line := range strings.Split(group.Rules, "\n") {
+		rule, exception, ignore, err := compileLine(line)
+		if ignore {
+			continue
+		}
+		if err != nil {
+			issues = append(issues, Issue{
+				GroupID:   group.ID,
+				GroupName: group.Name,
+				Line:      lineIndex + 1,
+				Message:   err.Error(),
+			})
+
+			continue
+		}
+
+		if exception {
+			compiled.exceptions = append(compiled.exceptions, rule)
+		} else {
+			compiled.positive = append(compiled.positive, rule)
+		}
+	}
+
+	return compiled, issues
 }
 
 // Match returns the first matching group.
@@ -193,8 +206,7 @@ func (r compiledRule) match(host string) bool {
 
 func compileLine(line string) (rule compiledRule, exception, ignore bool, err error) {
 	line = strings.TrimSpace(line)
-	if line == "" || strings.HasPrefix(line, "!") || strings.HasPrefix(line, "#") ||
-		(strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]")) {
+	if isIgnoredLine(line) {
 		return compiledRule{}, false, true, nil
 	}
 
@@ -203,17 +215,9 @@ func compileLine(line string) (rule compiledRule, exception, ignore bool, err er
 	}
 
 	if strings.HasPrefix(line, "/") {
-		pattern := line[1:]
-		if strings.HasSuffix(pattern, "/") && !strings.HasSuffix(pattern, `\/`) {
-			pattern = strings.TrimSuffix(pattern, "/")
-		}
-		pattern = strings.ReplaceAll(pattern, `\/`, "/")
-		re, reErr := compileRuleRegexp(pattern)
-		if reErr != nil {
-			return compiledRule{}, exception, false, fmt.Errorf("compiling regular expression: %w", reErr)
-		}
+		rule, err = compileRegexpLine(line)
 
-		return compiledRule{kind: ruleKindRegexp, re: re}, exception, false, nil
+		return rule, exception, false, err
 	}
 
 	line, _, _ = strings.Cut(line, "$")
@@ -222,76 +226,102 @@ func compileLine(line string) (rule compiledRule, exception, ignore bool, err er
 	}
 
 	if strings.HasPrefix(line, "||") {
-		pattern := line[2:]
-		hasTerminator := false
-		if idx := strings.IndexAny(pattern, "^/|"); idx >= 0 {
-			hasTerminator = true
-			pattern = pattern[:idx]
-		}
-		pattern = strings.ToLower(strings.TrimSuffix(pattern, "."))
-		if pattern == "" {
-			return compiledRule{}, exception, false, fmt.Errorf("empty domain anchor")
-		}
+		rule, err = compileDomainAnchor(line)
 
-		if strings.Contains(pattern, "*") {
-			re, reErr := compileHostGlob(pattern, true)
-			if reErr != nil {
-				return compiledRule{}, exception, false, reErr
-			}
-
-			return compiledRule{kind: ruleKindRegexp, re: re}, exception, false, nil
-		}
-		if strings.Contains(pattern, ".") {
-			return compiledRule{kind: ruleKindSuffix, text: pattern}, exception, false, nil
-		}
-
-		rePattern := `(?:^|\.)` + regexp.QuoteMeta(pattern)
-		if hasTerminator {
-			rePattern += `(?:$|\.)`
-		}
-		re := regexp.MustCompile(rePattern)
-
-		return compiledRule{kind: ruleKindRegexp, re: re}, exception, false, nil
+		return rule, exception, false, err
 	}
 
-	if strings.HasPrefix(line, "|") {
-		line = strings.TrimPrefix(line, "|")
-	}
+	line = strings.TrimPrefix(line, "|")
 	if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
-		host, hostErr := hostFromURL(line)
-		if hostErr != nil {
-			return compiledRule{}, exception, false, hostErr
-		}
+		rule, err = compileURLRule(line)
 
-		if strings.Contains(host, "*") {
-			re, reErr := compileHostGlob(host, false)
-			if reErr != nil {
-				return compiledRule{}, exception, false, reErr
-			}
-
-			return compiledRule{kind: ruleKindRegexp, re: re}, exception, false, nil
-		}
-
-		return compiledRule{kind: ruleKindSuffix, text: host}, exception, false, nil
+		return rule, exception, false, err
 	}
 
+	rule, err = compilePlainRule(line)
+
+	return rule, exception, false, err
+}
+
+func isIgnoredLine(line string) (ignored bool) {
+	return line == "" || strings.HasPrefix(line, "!") || strings.HasPrefix(line, "#") ||
+		(strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]"))
+}
+
+func compileRegexpLine(line string) (rule compiledRule, err error) {
+	pattern := line[1:]
+	if strings.HasSuffix(pattern, "/") && !strings.HasSuffix(pattern, `\/`) {
+		pattern = strings.TrimSuffix(pattern, "/")
+	}
+	pattern = strings.ReplaceAll(pattern, `\/`, "/")
+	re, err := compileRuleRegexp(pattern)
+	if err != nil {
+		return compiledRule{}, fmt.Errorf("compiling regular expression: %w", err)
+	}
+
+	return compiledRule{kind: ruleKindRegexp, re: re}, nil
+}
+
+func compileDomainAnchor(line string) (rule compiledRule, err error) {
+	pattern := line[2:]
+	hasTerminator := false
+	if idx := strings.IndexAny(pattern, "^/|"); idx >= 0 {
+		hasTerminator = true
+		pattern = pattern[:idx]
+	}
+	pattern = strings.ToLower(strings.TrimSuffix(pattern, "."))
+	if pattern == "" {
+		return compiledRule{}, fmt.Errorf("empty domain anchor")
+	}
+	if strings.Contains(pattern, "*") {
+		return compileGlobRule(pattern, true)
+	}
+	if strings.Contains(pattern, ".") {
+		return compiledRule{kind: ruleKindSuffix, text: pattern}, nil
+	}
+
+	rePattern := `(?:^|\.)` + regexp.QuoteMeta(pattern)
+	if hasTerminator {
+		rePattern += `(?:$|\.)`
+	}
+
+	return compiledRule{kind: ruleKindRegexp, re: regexp.MustCompile(rePattern)}, nil
+}
+
+func compileURLRule(line string) (rule compiledRule, err error) {
+	host, err := hostFromURL(line)
+	if err != nil {
+		return compiledRule{}, err
+	}
+	if strings.Contains(host, "*") {
+		return compileGlobRule(host, false)
+	}
+
+	return compiledRule{kind: ruleKindSuffix, text: host}, nil
+}
+
+func compilePlainRule(line string) (rule compiledRule, err error) {
 	plain := strings.ToLower(strings.Trim(line, "|^"))
 	if plain == "" || strings.ContainsAny(plain, " /[]") {
-		return compiledRule{}, exception, false, fmt.Errorf("rule has no executable hostname semantics")
+		return compiledRule{}, fmt.Errorf("rule has no executable hostname semantics")
 	}
 	if strings.Contains(plain, "*") {
-		re, reErr := compileHostGlob(plain, false)
-		if reErr != nil {
-			return compiledRule{}, exception, false, reErr
-		}
-
-		return compiledRule{kind: ruleKindRegexp, re: re}, exception, false, nil
+		return compileGlobRule(plain, false)
 	}
 	if strings.Contains(plain, ".") {
-		return compiledRule{kind: ruleKindSuffix, text: plain}, exception, false, nil
+		return compiledRule{kind: ruleKindSuffix, text: plain}, nil
 	}
 
-	return compiledRule{kind: ruleKindContains, text: plain}, exception, false, nil
+	return compiledRule{kind: ruleKindContains, text: plain}, nil
+}
+
+func compileGlobRule(pattern string, anchoredAtBoundary bool) (rule compiledRule, err error) {
+	re, err := compileHostGlob(pattern, anchoredAtBoundary)
+	if err != nil {
+		return compiledRule{}, err
+	}
+
+	return compiledRule{kind: ruleKindRegexp, re: re}, nil
 }
 
 var hostnameSuffixRegexp = regexp.MustCompile(
