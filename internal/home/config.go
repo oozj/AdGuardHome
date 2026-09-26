@@ -17,6 +17,7 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/aghos"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghtls"
 	"github.com/AdguardTeam/AdGuardHome/internal/configmigrate"
+	"github.com/AdguardTeam/AdGuardHome/internal/configsync"
 	"github.com/AdguardTeam/AdGuardHome/internal/dhcpd"
 	"github.com/AdguardTeam/AdGuardHome/internal/dnsforward"
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
@@ -163,6 +164,10 @@ type configuration struct {
 	Log logSettings `yaml:"log"`
 
 	OSConfig *osConfig `yaml:"os"`
+
+	// ConfigSync contains node-local primary or secondary synchronization
+	// settings.  It is never copied to another node.
+	ConfigSync configsync.Config `yaml:"config_sync,omitempty"`
 
 	sync.RWMutex `yaml:"-"`
 
@@ -982,12 +987,13 @@ func validateTLSCipherIDs(cipherIDs []string) (err error) {
 
 // defaultConfigModifier is a default [agh.ConfigModifier] implementation.
 type defaultConfigModifier struct {
-	auth     *auth
-	config   *configuration
-	logger   *slog.Logger
-	tlsMgr   *tlsManager
-	workDir  string
-	confPath string
+	auth       *auth
+	config     *configuration
+	configSync *configSyncService
+	logger     *slog.Logger
+	tlsMgr     *tlsManager
+	workDir    string
+	confPath   string
 }
 
 // newDefaultConfigModifier returns the new properly initialized
@@ -1017,6 +1023,11 @@ func (cm *defaultConfigModifier) Apply(ctx context.Context) {
 	err := cm.config.write(ctx, cm.logger, cm.tlsMgr, cm.auth, cm.workDir, cm.confPath)
 	if err != nil {
 		cm.logger.ErrorContext(ctx, "writing config", slogutil.KeyError, err)
+
+		return
+	}
+	if cm.configSync != nil {
+		cm.configSync.Notify()
 	}
 }
 
@@ -1028,4 +1039,8 @@ func (cm *defaultConfigModifier) setAuth(a *auth) {
 // setTLSManager sets the TLS manager used by Apply.
 func (cm *defaultConfigModifier) setTLSManager(m *tlsManager) {
 	cm.tlsMgr = m
+}
+
+func (cm *defaultConfigModifier) setConfigSync(s *configSyncService) {
+	cm.configSync = s
 }

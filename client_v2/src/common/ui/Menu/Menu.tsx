@@ -71,6 +71,11 @@ export const Menu = (props: Props) => {
                         },
                         { label: 'DNS', path: Paths.Dns, routePath: RoutePath.Dns },
                         {
+                            label: intl.getMessage('upstream_rule_groups_title'),
+                            path: Paths.UpstreamRules,
+                            routePath: RoutePath.UpstreamRules,
+                        },
+                        {
                             label: intl.getMessage('protocols'),
                             path: Paths.Encryption,
                             routePath: RoutePath.Encryption,

@@ -36,6 +36,8 @@ import { Protection } from '../Clients/AddClient/blocks/Protection/Protection';
 import { ClientBlockedServices } from '../Clients/AddClient/blocks/ClientBlockedServices';
 import { ClientSchedule } from '../Clients/AddClient/blocks/ClientSchedule';
 import { Paths } from '../Routes/Paths';
+import { UpstreamRules } from '../UpstreamRules';
+import { UpstreamRuleEditor } from '../UpstreamRules/UpstreamRuleEditor';
 
 const SetupGuideRoute = () => <SetupGuide />;
 const BlockedServicesRoute = () => <BlockedServices />;
@@ -130,6 +132,8 @@ const App = () => {
             <Route path={Paths.SettingsPage} component={Settings} />
             <Route path={Paths.Encryption} component={Encryption} />
             <Route path={Paths.Dns} component={DnsSettings} />
+            <Route path={Paths.UpstreamRules} component={UpstreamRules} />
+            <Route path={Paths.UpstreamRulesEdit} component={UpstreamRuleEditor} />
             <Route path={Paths.DnsPrivateReverse} component={PrivateReverse} />
             <Route path={Paths.DnsBlocklists} component={Blocklists} />
             <Route path={Paths.DnsAllowlists} component={Allowlists} />

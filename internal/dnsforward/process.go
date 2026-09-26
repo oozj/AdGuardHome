@@ -478,10 +478,10 @@ func (s *Server) processUpstream(
 		return resultCodeFinish
 	}
 
-	s.setCustomUpstream(ctx, l, pctx, dctx.clientID)
+	prx, releaseUpstreamRules := s.setCustomUpstream(ctx, l, pctx, dctx.clientID)
+	defer releaseUpstreamRules()
 
 	// Process the request further since it wasn't filtered.
-	prx := s.proxy()
 	if prx == nil {
 		dctx.err = srvClosedErr
 
@@ -527,23 +527,40 @@ func (s *Server) setCustomUpstream(
 	l *slog.Logger,
 	pctx *proxy.DNSContext,
 	clientID string,
-) {
-	if !pctx.Addr.IsValid() || s.conf.ClientsContainer == nil {
-		return
+) (prx *proxy.Proxy, release func()) {
+	if pctx.Addr.IsValid() && s.conf.ClientsContainer != nil {
+		cliAddr := pctx.Addr.Addr()
+		upsConf := s.conf.ClientsContainer.CustomUpstreamConfig(clientID, cliAddr)
+		if upsConf != nil {
+			l.DebugContext(
+				ctx,
+				"using custom upstreams for client with",
+				"ip", cliAddr,
+				"client_id", clientID,
+			)
+
+			pctx.CustomUpstreamConfig = upsConf
+
+			return s.proxy(), func() {}
+		}
 	}
 
-	cliAddr := pctx.Addr.Addr()
-	upsConf := s.conf.ClientsContainer.CustomUpstreamConfig(clientID, cliAddr)
+	if pctx.Req == nil || len(pctx.Req.Question) == 0 {
+		return s.proxy(), func() {}
+	}
+
+	s.serverLock.RLock()
+	runtime := s.upstreamRules
+	upsConf := runtime.customConfig(pctx.Req.Question[0].Name)
 	if upsConf != nil {
-		l.DebugContext(
-			ctx,
-			"using custom upstreams for client with",
-			"ip", cliAddr,
-			"client_id", clientID,
-		)
-
+		l.DebugContext(ctx, "using custom upstreams for QNAME rule group")
 		pctx.CustomUpstreamConfig = upsConf
+
+		return s.dnsProxy, s.serverLock.RUnlock
 	}
+	s.serverLock.RUnlock()
+
+	return s.proxy(), func() {}
 }
 
 // Apply filtering logic after we have received response from upstream servers.

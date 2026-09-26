@@ -154,6 +154,10 @@ type Server struct {
 	// isn't started and so no listen ports are required.
 	internalProxy *proxy.Proxy
 
+	// upstreamRules selects per-request upstream configurations by QNAME.  It
+	// is nil when no upstream rule groups are enabled.
+	upstreamRules *upstreamRuleRuntime
+
 	// ipset processes DNS requests using ipset data.  It must not be nil after
 	// initialization.  See [newIpsetHandler].
 	ipset *ipsetHandler
@@ -179,6 +183,10 @@ type Server struct {
 
 	// serverLock protects Server.
 	serverLock sync.RWMutex
+
+	// upstreamRuleGroupsMu serializes read-modify-write operations on upstream
+	// rule groups without holding serverLock across subscription downloads.
+	upstreamRuleGroupsMu sync.Mutex
 
 	// protectionUpdateInProgress is used to make sure that only one goroutine
 	// updating the protection configuration after a pause is running at a time.
@@ -307,6 +315,10 @@ func (s *Server) WriteDiskConfig(c *Config) {
 	c.BlockedHosts = slices.Clone(sc.BlockedHosts)
 	c.TrustedProxies = slices.Clone(sc.TrustedProxies)
 	c.UpstreamDNS = slices.Clone(sc.UpstreamDNS)
+	c.UpstreamRuleGroups = slices.Clone(sc.UpstreamRuleGroups)
+	for i := range c.UpstreamRuleGroups {
+		c.UpstreamRuleGroups[i].Upstreams = slices.Clone(c.UpstreamRuleGroups[i].Upstreams)
+	}
 }
 
 // LocalPTRResolvers returns the current local PTR resolver configuration.
@@ -664,6 +676,8 @@ func (s *Server) prepareInternalDNS(ctx context.Context) (err error) {
 		// Don't wrap the error, because it's informative enough as is.
 		return err
 	}
+
+	s.prepareUpstreamRuleSettings(ctx, s.bootstrap)
 
 	s.conf.PrivateRDNSUpstreamConfig, err = s.prepareLocalResolvers(ctx)
 	if err != nil {

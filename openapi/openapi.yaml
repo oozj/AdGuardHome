@@ -46,6 +46,10 @@
   'description': 'AdGuard Home statistics'
 - 'name': 'tls'
   'description': 'AdGuard Home HTTPS/DoH/DoQ/DoT settings'
+- 'name': 'upstream_rules'
+  'description': 'Upstream DNS rule groups and subscriptions'
+- 'name': 'config_sync'
+  'description': 'Primary and secondary server configuration synchronization'
 
 'paths':
   '/status':
@@ -188,8 +192,169 @@
       'responses':
         '200':
           'description': 'OK.'
+  '/upstream_rules/status':
+    'get':
+      'tags':
+      - 'upstream_rules'
+      'operationId': 'upstreamRuleGroupsStatus'
+      'summary': 'Get upstream DNS rule groups'
+      'responses':
+        '200':
+          'description': 'OK.'
+          'content':
+            'application/json':
+              'schema':
+                '$ref': '#/components/schemas/UpstreamRuleGroupsStatus'
+  '/upstream_rules/save':
+    'post':
+      'tags':
+      - 'upstream_rules'
+      'operationId': 'upstreamRuleGroupSave'
+      'summary': 'Create or update an upstream DNS rule group'
+      'requestBody':
+        'required': true
+        'content':
+          'application/json':
+            'schema':
+              '$ref': '#/components/schemas/UpstreamRuleGroup'
+      'responses':
+        '200':
+          'description': 'OK.'
+          'content':
+            'application/json':
+              'schema':
+                '$ref': '#/components/schemas/UpstreamRuleGroup'
+  '/upstream_rules/delete':
+    'post':
+      'tags':
+      - 'upstream_rules'
+      'operationId': 'upstreamRuleGroupDelete'
+      'summary': 'Delete an upstream DNS rule group'
+      'requestBody':
+        'required': true
+        'content':
+          'application/json':
+            'schema':
+              '$ref': '#/components/schemas/UpstreamRuleGroupIDRequest'
+      'responses':
+        '200':
+          'description': 'OK.'
+  '/upstream_rules/refresh':
+    'post':
+      'tags':
+      - 'upstream_rules'
+      'operationId': 'upstreamRuleGroupRefresh'
+      'summary': 'Refresh an upstream DNS rule subscription'
+      'requestBody':
+        'required': true
+        'content':
+          'application/json':
+            'schema':
+              '$ref': '#/components/schemas/UpstreamRuleGroupIDRequest'
+      'responses':
+        '200':
+          'description': 'OK.'
+          'content':
+            'application/json':
+              'schema':
+                '$ref': '#/components/schemas/UpstreamRuleGroup'
+  '/upstream_rules/test':
+    'post':
+      'tags':
+      - 'upstream_rules'
+      'operationId': 'upstreamRuleTest'
+      'summary': 'Test which upstream DNS rule group matches a domain'
+      'requestBody':
+        'required': true
+        'content':
+          'application/json':
+            'schema':
+              '$ref': '#/components/schemas/UpstreamRuleTestRequest'
+      'responses':
+        '200':
+          'description': 'OK.'
+          'content':
+            'application/json':
+              'schema':
+                '$ref': '#/components/schemas/UpstreamRuleTestResponse'
         '500':
           'description': 'Failed'
+  '/config_sync/status':
+    'get':
+      'tags':
+      - 'config_sync'
+      'operationId': 'configSyncStatus'
+      'summary': 'Get configuration synchronization status'
+      'responses':
+        '200':
+          'description': 'OK.'
+          'content':
+            'application/json':
+              'schema':
+                '$ref': '#/components/schemas/ConfigSyncStatus'
+  '/config_sync/save':
+    'post':
+      'tags':
+      - 'config_sync'
+      'operationId': 'configSyncSave'
+      'summary': 'Save the local synchronization role and secondary links'
+      'requestBody':
+        'required': true
+        'content':
+          'application/json':
+            'schema':
+              '$ref': '#/components/schemas/ConfigSyncSaveRequest'
+      'responses':
+        '200':
+          'description': 'OK.'
+          'content':
+            'application/json':
+              'schema':
+                '$ref': '#/components/schemas/ConfigSyncStatus'
+  '/config_sync/sync':
+    'post':
+      'tags':
+      - 'config_sync'
+      'operationId': 'configSyncNow'
+      'summary': 'Push the primary configuration to all secondary servers'
+      'responses':
+        '200':
+          'description': 'OK.'
+  '/config_sync/regenerate':
+    'post':
+      'tags':
+      - 'config_sync'
+      'operationId': 'configSyncRegenerate'
+      'summary': 'Regenerate the secondary pairing token'
+      'responses':
+        '200':
+          'description': 'OK.'
+          'content':
+            'application/json':
+              'schema':
+                '$ref': '#/components/schemas/ConfigSyncStatus'
+  '/config_sync/receive':
+    'post':
+      'tags':
+      - 'config_sync'
+      'security':
+      - 'configSyncBearer': []
+      'operationId': 'configSyncReceive'
+      'summary': 'Receive a primary configuration on a secondary server'
+      'description': 'Authenticates with the pairing token in the Bearer header.'
+      'requestBody':
+        'required': true
+        'content':
+          'application/yaml':
+            'schema':
+              'type': 'string'
+      'responses':
+        '200':
+          'description': 'Configuration accepted and restart scheduled.'
+        '400':
+          'description': 'Configuration validation failed.'
+        '401':
+          'description': 'Invalid pairing token or node role.'
   '/querylog':
     'get':
       'tags':
@@ -1484,6 +1649,132 @@
             '$ref': '#/components/schemas/RewriteUpdate'
       'required': true
   'schemas':
+    'ConfigSyncPeerStatus':
+      'type': 'object'
+      'required': ['link']
+      'properties':
+        'link':
+          'type': 'string'
+        'last_sync':
+          'type': 'string'
+        'error':
+          'type': 'string'
+    'ConfigSyncStatus':
+      'type': 'object'
+      'required': ['role', 'peers']
+      'properties':
+        'role':
+          'type': 'string'
+          'enum': ['', 'primary', 'secondary']
+        'link':
+          'type': 'string'
+        'peers':
+          'type': 'array'
+          'items':
+            '$ref': '#/components/schemas/ConfigSyncPeerStatus'
+    'ConfigSyncSaveRequest':
+      'type': 'object'
+      'required': ['role']
+      'properties':
+        'role':
+          'type': 'string'
+          'enum': ['', 'primary', 'secondary']
+        'links':
+          'type': 'array'
+          'items':
+            'type': 'string'
+    'UpstreamRuleGroup':
+      'type': 'object'
+      'required':
+      - 'name'
+      - 'enabled'
+      - 'priority'
+      - 'kind'
+      - 'upstreams'
+      'properties':
+        'id':
+          'type': 'integer'
+          'format': 'uint64'
+        'name':
+          'type': 'string'
+        'enabled':
+          'type': 'boolean'
+        'priority':
+          'type': 'integer'
+        'kind':
+          'type': 'string'
+          'enum': ['subscription', 'custom']
+        'url':
+          'type': 'string'
+        'upstreams':
+          'type': 'array'
+          'items':
+            'type': 'string'
+        'rules':
+          'type': 'string'
+        'rules_count':
+          'type': 'integer'
+        'last_updated':
+          'type': 'string'
+        'last_error':
+          'type': 'string'
+    'UpstreamRuleIssue':
+      'type': 'object'
+      'required': ['group_id', 'group_name', 'line', 'message']
+      'properties':
+        'group_id':
+          'type': 'integer'
+          'format': 'uint64'
+        'group_name':
+          'type': 'string'
+        'line':
+          'type': 'integer'
+        'message':
+          'type': 'string'
+    'UpstreamRuleGroupsStatus':
+      'type': 'object'
+      'required': ['default_upstreams', 'groups', 'issues']
+      'properties':
+        'default_upstreams':
+          'type': 'array'
+          'items':
+            'type': 'string'
+        'groups':
+          'type': 'array'
+          'items':
+            '$ref': '#/components/schemas/UpstreamRuleGroup'
+        'issues':
+          'type': 'array'
+          'items':
+            '$ref': '#/components/schemas/UpstreamRuleIssue'
+    'UpstreamRuleGroupIDRequest':
+      'type': 'object'
+      'required': ['id']
+      'properties':
+        'id':
+          'type': 'integer'
+          'format': 'uint64'
+    'UpstreamRuleTestRequest':
+      'type': 'object'
+      'required': ['domain']
+      'properties':
+        'domain':
+          'type': 'string'
+    'UpstreamRuleTestResponse':
+      'type': 'object'
+      'required': ['matched']
+      'properties':
+        'matched':
+          'type': 'boolean'
+        'group_id':
+          'type': 'integer'
+          'format': 'uint64'
+        'group_name':
+          'type': 'string'
+        'upstreams':
+          'type': 'array'
+          'items':
+            'type': 'string'
     'FilteringReason':
       'type': 'string'
       'description': 'Request filtering status.'
@@ -3387,3 +3678,7 @@
     'basicAuth':
       'type': 'http'
       'scheme': 'basic'
+    'configSyncBearer':
+      'type': 'http'
+      'scheme': 'bearer'
+      'description': 'Secondary-server pairing token.'

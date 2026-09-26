@@ -16,6 +16,7 @@ import (
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghuser"
+	"github.com/AdguardTeam/AdGuardHome/internal/configsync"
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/httphdr"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
@@ -297,6 +298,10 @@ func (web *webAPI) registerAuthHandlers() {
 
 // isPublicResource returns true if p is a path to a public resource.
 func isPublicResource(p string) (ok bool) {
+	if p == configsync.ReceivePath {
+		return true
+	}
+
 	isAsset, err := path.Match("/assets/*", p)
 	if err != nil {
 		// The only error that is returned from path.Match is

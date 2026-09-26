@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/AdguardTeam/AdGuardHome/internal/configsync"
 	"github.com/AdguardTeam/golibs/ioutil"
 	"github.com/c2h5oh/datasize"
 )
@@ -15,6 +16,8 @@ const (
 	// largerReqBodySzLim is the maximum request body size for APIs expecting
 	// larger requests.
 	largerReqBodySzLim datasize.ByteSize = 4 * datasize.MB
+
+	configSyncReqBodySzLim datasize.ByteSize = 32 * datasize.MB
 )
 
 // expectsLargerRequests shows if this request should use a larger body size
@@ -37,14 +40,22 @@ func expectsLargerRequests(r *http.Request) (ok bool) {
 	}
 }
 
+func requestBodySizeLimit(r *http.Request) (limit datasize.ByteSize) {
+	if r.URL.Path == configsync.ReceivePath {
+		return configSyncReqBodySzLim
+	}
+	if expectsLargerRequests(r) {
+		return largerReqBodySzLim
+	}
+
+	return defaultReqBodySzLim
+}
+
 // limitRequestBody wraps underlying handler h, making it's request's body Read
 // method limited.
 func limitRequestBody(h http.Handler) (limited http.Handler) {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		szLim := defaultReqBodySzLim
-		if expectsLargerRequests(r) {
-			szLim = largerReqBodySzLim
-		}
+		szLim := requestBodySizeLimit(r)
 
 		reader := ioutil.LimitReader(r.Body, szLim.Bytes())
 

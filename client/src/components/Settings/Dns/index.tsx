@@ -3,9 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useDispatch, useSelector } from 'react-redux';
 
-import Upstream from './Upstream';
-
 import Access from './Access';
+import Upstream from './Upstream';
 
 import Config from './Config';
 
@@ -40,7 +39,7 @@ const Dns = () => {
                 <Loading />
             ) : (
                 <>
-                    <Upstream />
+                    <Upstream hidePrimaryUpstreams />
 
                     <Config />
 
