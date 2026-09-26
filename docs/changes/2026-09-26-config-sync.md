@@ -26,6 +26,8 @@
   `.2` role-change restart and returned connection refused; retry returned 200.
 - Canonical configuration hashes excluding `config_sync` match exactly on
   `.60` and `.2`.  UDP/TCP DNS and the management interfaces passed on both.
+- Continuous-save testing exposed a secondary restart-window race.  Per-peer
+  concurrent retries were added and covered by regression tests.
 
 ## Remaining work
 

@@ -64,6 +64,7 @@ type configSyncServiceConfig struct {
 	WorkDir    string
 	Validate   func(ctx context.Context, path string) (err error)
 	Restart    func()
+	RetryDelay time.Duration
 }
 
 type configSyncService struct {
@@ -75,6 +76,7 @@ type configSyncService struct {
 	workDir    string
 	validate   func(ctx context.Context, path string) (err error)
 	restart    func()
+	retryDelay time.Duration
 	syncMu     *sync.Mutex
 	statusMu   *sync.Mutex
 	statuses   map[string]configSyncPeerResult
@@ -86,6 +88,10 @@ func newConfigSyncService(c *configSyncServiceConfig) (s *configSyncService) {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
+	retryDelay := c.RetryDelay
+	if retryDelay == 0 {
+		retryDelay = 3 * time.Second
+	}
 
 	s = &configSyncService{
 		conf:       c.Config,
@@ -96,6 +102,7 @@ func newConfigSyncService(c *configSyncServiceConfig) (s *configSyncService) {
 		workDir:    c.WorkDir,
 		validate:   c.Validate,
 		restart:    c.Restart,
+		retryDelay: retryDelay,
 		syncMu:     &sync.Mutex{},
 		statusMu:   &sync.Mutex{},
 		statuses:   map[string]configSyncPeerResult{},
@@ -447,7 +454,7 @@ func (s *configSyncService) syncAll(ctx context.Context) (err error) {
 		go func() {
 			defer wg.Done()
 
-			peerErr := s.push(ctx, peer, data)
+			peerErr := s.pushWithRetry(ctx, peer, data)
 			s.setPeerResult(peer.Endpoint, peerErr)
 			if peerErr != nil {
 				errCh <- peerErr
@@ -462,6 +469,32 @@ func (s *configSyncService) syncAll(ctx context.Context) (err error) {
 		errs = append(errs, peerErr)
 	}
 	return errors.Join(errs...)
+}
+
+func (s *configSyncService) pushWithRetry(
+	ctx context.Context,
+	peer configsync.Peer,
+	data []byte,
+) (err error) {
+	const attempts = 3
+
+	for attempt := 0; attempt < attempts; attempt++ {
+		err = s.push(ctx, peer, data)
+		if err == nil || attempt == attempts-1 {
+			return err
+		}
+
+		timer := time.NewTimer(s.retryDelay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+
+	return err
 }
 
 func (s *configSyncService) setPeerResult(endpoint string, err error) {

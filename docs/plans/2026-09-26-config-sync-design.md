@@ -42,9 +42,10 @@ writes a temporary file, validates it with the current AdGuard Home binary and
 It replies before requesting a supervised restart.  Invalid payloads and failed
 validation leave the current configuration untouched.
 
-Primary pushes are debounced and serialized.  One unavailable secondary does
-not block other peers.  The page reports the most recent in-process result and
-offers a manual retry.
+Primary pushes are debounced and serialized.  Peers are pushed concurrently,
+and each failed peer is retried independently across the normal secondary
+restart window.  One unavailable secondary does not block other peers.  The
+page reports the most recent in-process result and offers a manual retry.
 
 ## Interface
 

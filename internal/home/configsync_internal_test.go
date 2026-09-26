@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -216,6 +217,45 @@ func TestConfigSyncServiceUnavailablePeerDoesNotBlockOthers(t *testing.T) {
 	default:
 		t.Fatal("fast peer was blocked by unavailable peer")
 	}
+}
+
+func TestConfigSyncServiceRetriesRestartWindow(t *testing.T) {
+	t.Parallel()
+
+	requests := &atomic.Int32{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if requests.Add(1) == 1 {
+			http.Error(w, "restarting", http.StatusServiceUnavailable)
+
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "AdGuardHome.yaml")
+	require.NoError(t, os.WriteFile(confPath, []byte("dns: {}\n"), 0o600))
+	svc := newConfigSyncService(&configSyncServiceConfig{
+		Config: &configuration{ConfigSync: configsync.Config{
+			Role: configsync.RolePrimary,
+			Peers: []configsync.Peer{{
+				Endpoint: server.URL,
+				Token:    "peer-secret",
+			}},
+		}},
+		HTTPClient: server.Client(),
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+		ConfPath:   confPath,
+		WorkDir:    dir,
+		Validate:   func(context.Context, string) error { return nil },
+		Restart:    func() {},
+		RetryDelay: time.Millisecond,
+	})
+
+	err := svc.syncAll(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, int32(2), requests.Load())
 }
 
 func TestConfigSyncServiceSaveSecondary(t *testing.T) {
