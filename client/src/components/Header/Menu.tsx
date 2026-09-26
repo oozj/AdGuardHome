@@ -50,6 +50,10 @@ const SETTINGS_ITEMS = [
         text: 'upstream_rules_title',
     },
     {
+        route: SETTINGS_URLS.config_sync,
+        text: 'config_sync_title',
+    },
+    {
         route: SETTINGS_URLS.encryption,
         text: 'encryption_settings',
     },

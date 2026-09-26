@@ -36,6 +36,7 @@ import Encryption from '../../containers/Encryption';
 import UpstreamRules from '../Settings/UpstreamRules';
 import UpstreamRuleEditor from '../Settings/UpstreamRules/Editor';
 import DefaultUpstreamRuleEditor from '../Settings/UpstreamRules/DefaultEditor';
+import ConfigSync from '../Settings/ConfigSync';
 
 import Dhcp from '../Settings/Dhcp';
 import Clients from '../../containers/Clients';
@@ -85,6 +86,11 @@ const ROUTES = [
     {
         path: SETTINGS_URLS.upstream_rules,
         component: UpstreamRules,
+        exact: true,
+    },
+    {
+        path: SETTINGS_URLS.config_sync,
+        component: ConfigSync,
         exact: true,
     },
     {

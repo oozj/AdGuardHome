@@ -146,6 +146,7 @@ export const SETTINGS_URLS = {
     dhcp: '/dhcp',
     dns: '/dns',
     upstream_rules: '/upstream_rules',
+    config_sync: '/config_sync',
     settings: '/settings',
     clients: '/clients',
 };

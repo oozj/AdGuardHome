@@ -699,6 +699,22 @@ class Api {
         return this.makeRequest('upstream_rules/test', 'POST', { data: { domain } });
     }
 
+    getConfigSync() {
+        return this.makeRequest('config_sync/status', 'GET');
+    }
+
+    saveConfigSync(data: any) {
+        return this.makeRequest('config_sync/save', 'POST', { data });
+    }
+
+    syncConfigNow() {
+        return this.makeRequest('config_sync/sync', 'POST');
+    }
+
+    regenerateConfigSyncToken() {
+        return this.makeRequest('config_sync/regenerate', 'POST');
+    }
+
     SET_PROTECTION = { path: 'protection', method: 'POST' };
 
     setProtection(data: any) {

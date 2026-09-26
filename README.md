@@ -11,6 +11,8 @@ keeping the familiar AdGuard Home interface.
 - Exception rules that skip the current group and continue to the next group.
 - A non-removable Default group for unmatched DNS questions.
 - Hostname match testing and visible subscription or compile errors.
+- Primary-to-secondary configuration synchronization with copyable pairing
+  links, automatic pushes after saves, validation, and manual retry.
 
 Matching is based on DNS question names.  URL paths, query strings, and
 fragments are not available in DNS requests and are therefore ignored.
@@ -106,6 +108,27 @@ mounted directories.
 
 Lower numeric priority values appear earlier.  Groups with the same priority
 retain their saved order.
+
+## Configuration synchronization
+
+Open **Settings → Configuration sync** on every server:
+
+1. Select **Secondary server** on each receiving node, save, and copy its
+   pairing link.
+2. Select **Primary server** on the authoritative node and save.
+3. Add each secondary pairing link.  Adding a node triggers an initial push.
+4. Later configuration saves on the primary automatically trigger another
+   push.  **Sync now** retries all configured secondary servers.
+
+The complete `AdGuardHome.yaml` configuration is synchronized except for each
+node's own `config_sync` section.  Query logs, statistics databases, sessions,
+and downloaded cache files remain local.  A secondary validates the received
+configuration before replacing its file and then requests a supervised
+restart.  Run every node under systemd, Docker, or another restart-capable
+service manager.
+
+Pairing links grant permission to replace a secondary server's configuration.
+Treat them like passwords and prefer HTTPS between nodes when available.
 
 ## License
 

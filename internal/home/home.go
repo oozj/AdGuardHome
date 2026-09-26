@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -70,6 +71,8 @@ type homeContext struct {
 //
 // TODO(a.garipov): Refactor.
 var globalContext homeContext
+
+var configSyncRestartRequested atomic.Bool
 
 // Main is the entry point
 func Main(clientBuildFS fs.FS) {
@@ -188,6 +191,9 @@ func Main(clientBuildFS fs.FS) {
 		pidFilePath,
 		hc,
 	)
+	if configSyncRestartRequested.Load() {
+		os.Exit(osutil.ExitCodeFailure)
+	}
 }
 
 // setupContext initializes [globalContext] fields.  It also reads and upgrades

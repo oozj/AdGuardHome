@@ -238,6 +238,8 @@ type webAPI struct {
 	// hostsContainer is used for DNS initialization on updates.
 	hostsContainer *aghnet.HostsContainer
 
+	configSync *configSyncService
+
 	// httpsServer is the server that handles HTTPS traffic.  If it is not nil,
 	// [Web.http3Server] must also not be nil.
 	//
@@ -293,6 +295,22 @@ func newWebAPI(ctx context.Context, conf *webAPIConfig) (w *webAPI) {
 		w.registerInstallHandlers()
 	} else {
 		w.registerControlHandlers()
+
+		if cm, ok := conf.confModifier.(*defaultConfigModifier); ok {
+			confPath := configFilePath(ctx, conf.logger, conf.workDir, conf.confPath)
+			w.configSync = newConfigSyncService(&configSyncServiceConfig{
+				Config:     cm.config,
+				Modifier:   cm,
+				HTTPClient: httpClient(conf.tlsManager),
+				Logger:     conf.logger.With(slogutil.KeyPrefix, "config_sync"),
+				ConfPath:   confPath,
+				WorkDir:    conf.workDir,
+				Validate:   validateSyncedConfig(conf.workDir),
+				Restart:    scheduleConfigSyncRestart,
+			})
+			cm.setConfigSync(w.configSync)
+			w.configSync.register(conf.httpReg, conf.mux)
+		}
 	}
 
 	w.httpsServer.logger = conf.baseLogger.With(slogutil.KeyPrefix, "https_server")

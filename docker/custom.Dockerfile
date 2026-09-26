@@ -9,7 +9,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm --prefix client run build-prod
 
 FROM --platform=$BUILDPLATFORM adguard/go-builder:1.26.6--1 AS backend
-ARG VERSION=v0.107.79-upstream-rules
+ARG VERSION=v0.107.79-custom.2
 ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETVARIANT

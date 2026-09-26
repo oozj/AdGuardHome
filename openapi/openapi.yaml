@@ -48,6 +48,8 @@
   'description': 'AdGuard Home HTTPS/DoH/DoQ/DoT settings'
 - 'name': 'upstream_rules'
   'description': 'Upstream DNS rule groups and subscriptions'
+- 'name': 'config_sync'
+  'description': 'Primary and secondary server configuration synchronization'
 
 'paths':
   '/status':
@@ -277,6 +279,82 @@
                 '$ref': '#/components/schemas/UpstreamRuleTestResponse'
         '500':
           'description': 'Failed'
+  '/config_sync/status':
+    'get':
+      'tags':
+      - 'config_sync'
+      'operationId': 'configSyncStatus'
+      'summary': 'Get configuration synchronization status'
+      'responses':
+        '200':
+          'description': 'OK.'
+          'content':
+            'application/json':
+              'schema':
+                '$ref': '#/components/schemas/ConfigSyncStatus'
+  '/config_sync/save':
+    'post':
+      'tags':
+      - 'config_sync'
+      'operationId': 'configSyncSave'
+      'summary': 'Save the local synchronization role and secondary links'
+      'requestBody':
+        'required': true
+        'content':
+          'application/json':
+            'schema':
+              '$ref': '#/components/schemas/ConfigSyncSaveRequest'
+      'responses':
+        '200':
+          'description': 'OK.'
+          'content':
+            'application/json':
+              'schema':
+                '$ref': '#/components/schemas/ConfigSyncStatus'
+  '/config_sync/sync':
+    'post':
+      'tags':
+      - 'config_sync'
+      'operationId': 'configSyncNow'
+      'summary': 'Push the primary configuration to all secondary servers'
+      'responses':
+        '200':
+          'description': 'OK.'
+  '/config_sync/regenerate':
+    'post':
+      'tags':
+      - 'config_sync'
+      'operationId': 'configSyncRegenerate'
+      'summary': 'Regenerate the secondary pairing token'
+      'responses':
+        '200':
+          'description': 'OK.'
+          'content':
+            'application/json':
+              'schema':
+                '$ref': '#/components/schemas/ConfigSyncStatus'
+  '/config_sync/receive':
+    'post':
+      'tags':
+      - 'config_sync'
+      'security':
+      - 'configSyncBearer': []
+      'operationId': 'configSyncReceive'
+      'summary': 'Receive a primary configuration on a secondary server'
+      'description': 'Authenticates with the pairing token in the Bearer header.'
+      'requestBody':
+        'required': true
+        'content':
+          'application/yaml':
+            'schema':
+              'type': 'string'
+      'responses':
+        '200':
+          'description': 'Configuration accepted and restart scheduled.'
+        '400':
+          'description': 'Configuration validation failed.'
+        '401':
+          'description': 'Invalid pairing token or node role.'
   '/querylog':
     'get':
       'tags':
@@ -1571,6 +1649,40 @@
             '$ref': '#/components/schemas/RewriteUpdate'
       'required': true
   'schemas':
+    'ConfigSyncPeerStatus':
+      'type': 'object'
+      'required': ['link']
+      'properties':
+        'link':
+          'type': 'string'
+        'last_sync':
+          'type': 'string'
+        'error':
+          'type': 'string'
+    'ConfigSyncStatus':
+      'type': 'object'
+      'required': ['role', 'peers']
+      'properties':
+        'role':
+          'type': 'string'
+          'enum': ['', 'primary', 'secondary']
+        'link':
+          'type': 'string'
+        'peers':
+          'type': 'array'
+          'items':
+            '$ref': '#/components/schemas/ConfigSyncPeerStatus'
+    'ConfigSyncSaveRequest':
+      'type': 'object'
+      'required': ['role']
+      'properties':
+        'role':
+          'type': 'string'
+          'enum': ['', 'primary', 'secondary']
+        'links':
+          'type': 'array'
+          'items':
+            'type': 'string'
     'UpstreamRuleGroup':
       'type': 'object'
       'required':
@@ -3566,3 +3678,7 @@
     'basicAuth':
       'type': 'http'
       'scheme': 'basic'
+    'configSyncBearer':
+      'type': 'http'
+      'scheme': 'bearer'
+      'description': 'Secondary-server pairing token.'
